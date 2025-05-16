@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Pause Team - RL Green (Autenticazione Gist)</title>
+    <!-- Font/Icone -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" integrity="sha512-xh6O/CkQoPOWDdYTDqeRdPCVd1SpvCA9XXcUnZS2FmJNp1coAFzvtCN9BmamE+4aHK8yyUHUSCcJHgXloTyT2A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        :root {
+            --primary-color: #008C45; --primary-dark: #007A3D; --primary-light-gradient: #00A54F;
+            --secondary-color: #F5F5F5; --background-light: #FAFAFA; --background-card: #FFFFFF;
+            --text-dark: #263238; --text-light: #546E7A; --border-color: #E0E0E0;
+            --shadow-color: rgba(0, 100, 0, 0.08); --danger-color: #E57373; --danger-dark: #D32F2F;
+            --font-family: 'Poppins', sans-serif; --border-radius-main: 10px; --border-radius-small: 6px;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-family); background-color: var(--background-light); color: var(--text-dark); line-height: 1.6; padding: 25px; font-weight: 400; }
+        
+        /* Authentication Modal Styles */
+        .auth-modal {
+            display: flex; /* Hidden by default, shown by JS */
+            position: fixed;
+            z-index: 2000; /* Higher than other modals */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(38, 50, 56, 0.85);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+        }
+        .auth-modal-content {
+            background-color: var(--background-card);
+            margin: auto;
+            padding: 35px 40px;
+            border: none;
+            border-radius: var(--border-radius-main);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        .auth-modal h3 {
+            margin-top: 0;
+            margin-bottom: 25px;
+            color: var(--primary-color);
+            font-size: 1.7em;
+            text-align: center;
+            font-weight: 600;
+        }
+        .auth-modal form label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-dark);
+            font-size: 0.95em;
+        }
+        .auth-modal form input[type="text"],
+        .auth-modal form input[type="password"] { /* Token treated as password for masking */
+            width: 100%;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-small);
+            box-sizing: border-box;
+            font-size: 1em;
+            font-family: var(--font-family);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .auth-modal form input[type="text"]:focus,
+        .auth-modal form input[type="password"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 140, 69, 0.15);
+        }
+        .auth-modal-actions {
+            display: flex;
+            justify-content: center; /* Center the button */
+            margin-top: 20px;
+        }
+        .auth-modal .action-btn { width: 100%; } /* Make button full width */
+        .auth-modal .info-text {
+            font-size: 0.85em;
+            color: var(--text-light);
+            margin-bottom: 15px;
+            text-align: center;
+            line-height: 1.5;
+        }
+         .auth-modal .info-text a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        .auth-modal .info-text a:hover {
+            text-decoration: underline;
+        }
+
+
+        #main-app-container {
+            display: none; /* Hidden initially, shown after successful auth */
+        }
+
+        .header-area, .main-content, .regulations-section { margin-bottom: 30px; }
+        .header-area h1 { text-align: center; color: var(--primary-color); margin-bottom: 25px; font-size: 2.8em; font-weight: 700; letter-spacing: -1px; }
+        .header-top-right { display: flex; justify-content: flex-end; align-items: center; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+        #current-datetime { font-size: 1em; color: var(--text-light); font-weight: 500; background-color: var(--background-card); padding: 8px 15px; border-radius: var(--border-radius-small); box-shadow: 0 2px 4px var(--shadow-color); white-space: nowrap; }
+
+        #in-pause-banner { min-height: 85px; background: linear-gradient(135deg, var(--primary-color), var(--primary-light-gradient)); color: white; padding: 20px; margin-bottom: 30px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center; border-radius: var(--border-radius-main); box-shadow: 0 4px 15px rgba(0, 140, 69, 0.3); overflow: visible; position: relative; transition: min-height 0.3s ease; }
+        #in-pause-banner.has-users { justify-content: flex-start; }
+        .banner-placeholder { color: rgba(255, 255, 255, 0.8); font-weight: 500; width: 100%; text-align: center; font-size: 1.1em; }
+        .paused-user { text-align: center; display: flex; flex-direction: column; align-items: center; transition: transform 0.2s ease; }
+        .paused-user:hover { transform: translateY(-3px); }
+        .icon-circle { width: 55px; height: 55px; border-radius: 50%; border: 3px solid white; display: flex; justify-content: center; align-items: center; margin-bottom: 8px; font-size: 1.6em; color: white; background-color: rgba(255, 255, 255, 0.15); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .user-name { font-size: 0.90em; font-weight: 600; display: block; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); line-height: 1.2; word-break: break-word; max-width: 100px; }
+        .pause-end-time { font-size: 0.75em; color: rgba(255, 255, 255, 0.7); display: block; margin-top: -3px; }
+
+        .action-btn { padding: 12px 25px; border: none; border-radius: var(--border-radius-main); cursor: pointer; font-weight: 600; font-size: 1em; transition: all 0.25s ease; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 3px 8px var(--shadow-color); }
+        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12); }
+        .action-btn:active { transform: translateY(0px); box-shadow: 0 2px 5px var(--shadow-color); }
+        .add-pause-btn { background-color: var(--primary-color); color: white; }
+        .add-pause-btn:hover { background-color: var(--primary-dark); }
+        .delete-btn { background-color: var(--background-card); color: var(--danger-color); padding: 8px 15px; font-size: 0.9em; box-shadow: 0 2px 4px var(--shadow-color); border: 1px solid var(--border-color); }
+        .delete-btn i { color: var(--danger-color); }
+        .delete-btn:hover { background-color: #fff5f5; border-color: var(--danger-color); box-shadow: 0 3px 6px rgba(229, 115, 115, 0.2); }
+        .delete-btn:active { background-color: #ffebee; transform: translateY(0); }
+        .save-btn { background-color: var(--primary-color); color: white; }
+        .save-btn:hover { background-color: var(--primary-dark); }
+        .cancel-btn { background-color: var(--background-card); color: var(--text-light); border: 1px solid var(--border-color); }
+        .cancel-btn:hover { background-color: #f8f8f8; border-color: #ccc; box-shadow: 0 3px 6px var(--shadow-color); }
+
+        .table-filters { margin-bottom: 20px; display: flex; align-items: center; gap: 10px; background-color: var(--background-card); padding: 10px 15px; border-radius: var(--border-radius-small); box-shadow: 0 2px 4px var(--shadow-color); width: fit-content; flex-wrap: wrap; }
+        .table-filters label { font-weight: 500; color: var(--text-dark); }
+        #filter-select { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius-small); background-color: white; font-family: var(--font-family); font-weight: 500; color: var(--primary-color); cursor: pointer; }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0 10px; margin-top: -10px; }
+        thead { display: none; }
+        tbody tr { background-color: var(--background-card); border-radius: var(--border-radius-main); box-shadow: 0 3px 10px var(--shadow-color); overflow: hidden; transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: start; padding: 15px 20px; gap: 15px 20px; margin-bottom: 10px; position: relative; }
+        td { padding: 8px 0; text-align: left; vertical-align: top; border: none; font-size: 0.95em; color: var(--text-dark); position: relative; min-height: 60px; display: flex; flex-direction: column; }
+        td::before { content: attr(data-label); display: block; font-weight: 600; font-size: 0.8em; color: var(--primary-color); margin-bottom: 4px; text-transform: uppercase; flex-shrink: 0; }
+        td:first-child { font-weight: 600; font-size: 1.1em; color: var(--text-dark); grid-row: 1; }
+        td:first-child::before { margin-bottom: 6px; }
+        td .cell-content { display: flex; align-items: center; min-height: 25px; flex-grow: 1; }
+        td input[type="checkbox"] { margin-right: 8px; cursor: pointer; width: 17px; height: 17px; vertical-align: middle; accent-color: var(--primary-color); transition: opacity 0.2s; flex-shrink: 0; }
+        span.time-value { cursor: pointer; display: inline-block; transition: opacity 0.2s; font-weight: 500; }
+        td .placeholder-dash { color: var(--text-light); font-weight: 500; padding-left: 25px; align-self: center; }
+        td input.edit-time-input { position: absolute; left: 5px; bottom: 8px; width: calc(100% - 10px); padding: 6px 10px; font-family: var(--font-family); font-size: 0.95em; border: 1px solid var(--primary-color); border-radius: var(--border-radius-small); box-shadow: 0 0 0 3px rgba(0, 140, 69, 0.15); outline: none; z-index: 10; background-color: #fff; box-sizing: border-box; }
+        td.editing .cell-content { opacity: 0; pointer-events: none; }
+        td.completed span.time-value { text-decoration: line-through; color: var(--text-light); opacity: 0.8; }
+        td.completed input[type="checkbox"] { opacity: 0.7; }
+        td:last-child { text-align: right; padding-top: 0; display: flex; justify-content: flex-end; align-items: flex-end; grid-column: -1; }
+        td:last-child::before { content: none; display: none; }
+        .empty-row-placeholder td { grid-column: 1 / -1; text-align: center; font-style: normal; color: var(--text-light); font-size: 1.1em; padding: 30px 0; min-height: auto; display: block; }
+        .empty-row-placeholder td::before { content: none; }
+
+        .regulations-section { background-color: #f0f4f0; padding: 25px 30px; border-radius: var(--border-radius-main); border: 1px solid #B9D9B8; margin-top: 30px; box-shadow: 0 3px 8px var(--shadow-color); }
+        .regulations-section h4 { margin-top: 0; margin-bottom: 20px; color: var(--primary-dark); font-size: 1.4em; font-weight: 600; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; display: inline-block; }
+        .regulations-section ol { padding-left: 0; margin-bottom: 0; list-style: none; counter-reset: regulation-counter; }
+        .regulations-section li { margin-bottom: 12px; line-height: 1.7; position: relative; counter-increment: regulation-counter; padding-left: 40px; }
+        .regulations-section li::before { content: counter(regulation-counter); position: absolute; left: 0; top: 0; background-color: var(--primary-color); color: white; width: 25px; height: 25px; border-radius: 50%; display: inline-flex; justify-content: center; align-items: center; font-weight: 600; font-size: 0.9em; line-height: 25px; }
+
+        .modal { display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(38, 50, 56, 0.7); backdrop-filter: blur(5px); animation: fadeIn 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-content { background-color: var(--background-card); margin: 7% auto; padding: 35px 40px; border: none; border-radius: var(--border-radius-main); width: 90%; max-width: 580px; position: relative; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); animation: slideInUp 0.5s cubic-bezier(0.165, 0.84, 0.44, 1); }
+        @keyframes slideInUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close-btn { color: var(--text-light); position: absolute; top: 18px; right: 25px; font-size: 35px; font-weight: 300; cursor: pointer; line-height: 1; transition: color 0.2s ease, transform 0.2s ease; }
+        .close-btn:hover { color: var(--text-dark); transform: rotate(90deg); }
+        .modal h3 { margin-top: 0; margin-bottom: 30px; color: var(--primary-color); font-size: 1.8em; text-align: center; font-weight: 600; }
+        .modal form label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-dark); font-size: 0.95em; }
+        .modal form input[type="text"], .modal form input[type="time"], .modal form select { width: 100%; padding: 14px 18px; margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: var(--border-radius-small); box-sizing: border-box; font-size: 1em; font-family: var(--font-family); transition: border-color 0.2s ease, box-shadow 0.2s ease; background-color: #fdfdfd; appearance: none; }
+        .modal form select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 16px 12px; cursor: pointer; }
+        .modal form input[type="text"]:focus, .modal form input[type="time"]:focus, .modal form select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 140, 69, 0.15); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 15px; margin-top: 30px; padding-top: 25px; border-top: 1px solid var(--border-color); }
+
+        @media (max-width: 992px) { tbody tr { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } td:first-child { grid-column: 1 / -1; } td:last-child { grid-column: -1; justify-self: end; } }
+        @media (max-width: 768px) { body { padding: 15px; } .header-area h1 { font-size: 2.2em; } .header-top-right { flex-direction: column; align-items: flex-end; gap: 10px; } tbody tr { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); padding: 15px; } td { font-size: 0.9em; min-height: 55px; } td::before { font-size: 0.75em; } td:first-child { font-size: 1em; } td:last-child { justify-self: end; align-self: end; grid-column: auto; margin-top: 5px; } td:last-child .delete-btn { padding: 6px 12px; font-size: 0.85em; } .modal-content { margin: 15% auto; padding: 25px; } }
+        @media (max-width: 480px) { .header-area h1 { font-size: 1.8em; } #current-datetime { font-size: 0.9em; padding: 6px 10px; } .action-btn { padding: 10px 20px; font-size: 0.9em; } tbody tr { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; } td { padding: 5px 0; min-height: 50px; } td::before { margin-bottom: 2px; } td input[type="checkbox"] { width: 15px; height: 15px; margin-right: 5px; } span.time-value { min-width: auto; } td .placeholder-dash { padding-left: 20px; } td:first-child { grid-column: 1 / -1; font-size: 1em; text-align: center; } td:first-child::before { text-align: center; } td:last-child { grid-column: 1 / -1; justify-self: center; align-self: center; margin-top: 10px; text-align: center; justify-content: center; } .modal-actions { flex-direction: column; gap: 10px; } .modal-actions button { width: 100%; } }
+    </style>
+</head>
+<body>
+
+    <!-- Authentication Modal -->
+    <div id="auth-modal" class="auth-modal">
+        <div class="auth-modal-content">
+            <h3><i class="fas fa-shield-alt"></i> Autenticazione Richiesta</h3>
+            <p class="info-text">
+                Per utilizzare questa applicazione, inserisci il tuo Personal Access Token (PAT) di GitHub e l'ID del Gist.
+                <br>Il token necessita solo dello scope <code>gist</code>.
+                <br><a href="https://github.com/settings/tokens/new?scopes=gist&description=RLGreenPauseAppToken" target="_blank" rel="noopener noreferrer">Crea un nuovo Token qui</a>.
+            </p>
+            <form id="auth-form">
+                <div>
+                    <label for="auth-token-input"><i class="fas fa-key"></i> GitHub Personal Access Token (PAT):</label>
+                    <input type="password" id="auth-token-input" name="github_token" required placeholder="es. ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                </div>
+                <div>
+                    <label for="auth-gist-id-input"><i class="fab fa-github"></i> Gist ID:</label>
+                    <input type="text" id="auth-gist-id-input" name="gist_id" required placeholder="es. 1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p">
+                </div>
+                <div class="auth-modal-actions">
+                    <button type="submit" id="auth-submit-btn" class="action-btn save-btn">
+                        <i class="fas fa-sign-in-alt"></i> Procedi e Carica Dati
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application Container (Initially Hidden) -->
+    <div id="main-app-container">
+        <div class="header-area">
+            <h1>Gestione Pause</h1>
+            <div id="in-pause-banner">
+                <p class="banner-placeholder">Nessun collega attualmente in pausa.</p>
+            </div>
+            <div class="header-top-right">
+                <div id="current-datetime">--/--/----, --:--:--</div>
+                <button id="add-pause-btn" class="action-btn add-pause-btn"> <i class="fas fa-user-plus"></i> Aggiungi Pausa </button>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="table-filters">
+                <label for="filter-select"><i class="fas fa-filter"></i> Mostra:</label>
+                <select id="filter-select"> <option value="tutti">Tutti</option> <option value="in_corso">In corso</option> <option value="conclusa">Concluse</option> </select>
+            </div>
+            <table>
+                <thead> <tr><th>OPERATORE</th><th>PRIMA PAUSA</th><th>SECONDA PAUSA</th><th>PAUSA PRANZO</th><th>TERZA PAUSA (8H)</th><th>AZIONI</th></tr> </thead>
+                <tbody id="pause-table-body"> <tr class="empty-row-placeholder"> <td colspan="6">Nessuna pausa pianificata. Seleziona 'Aggiungi Pausa'! <i class="far fa-smile-wink"></i></td> </tr> </tbody>
+            </table>
+        </div>
+        <section class="regulations-section">
+           <h4><i class="fas fa-book-open"></i> Regolamento Gestione Pause</h4>
+           <ol>
+               <li>Non sovrapporsi nella selezione dell'orario della pausa (moderatori attivi <5);</li>
+               <li>È possibile sovrapporsi in caso di molti moderatori attivi in turno (moderatori attivi >=5);</li>
+               <li>Per favorire la visione globale della gestione all'intero gruppo, inserire la spunta su eseguita una volta terminata la pausa;</li>
+               <li>Se la pausa precedentemente inserita dovesse slittare, aggiornare l'orario (doppio clic sull'orario per modificare). La durata rimane invariata (15 min / 1h pranzo).</li>
+               <li>Nel limite del possibile, soprattutto quando si é solo in tre in turno, evitare di andare in pausa consecutivamente, lasciare sempre qualche minuto di stacco;</li>
+               <li>Le pause pranzo (1h) devono essere organizzate verificando il numero di colleghi in turno, normally il numero di operatori attivi non deve essere inferiore a 3. Tuttavia è possibile, in caso di necessità, concordare la pausa con il II livello. In caso di flussi alti coordinarsi con i colleghi e i supervisori.</li>
+               <li>Le pause brevi (Prima, Seconda, Terza) hanno una durata fissa di 15 minuti.</li>
+           </ol>
+       </section>
+        <div id="add-pause-modal" class="modal">
+            <div class="modal-content">
+               <span id="close-modal-btn" class="close-btn" title="Chiudi">×</span>
+               <h3><i class="far fa-clock"></i> Pianifica le tue Pause</h3>
+               <form id="add-pause-form">
+                    <div>
+                       <label for="modal-operatore"><i class="fas fa-user"></i> Nome e Cognome:</label>
+                       <select id="modal-operatore" name="operatore" required>
+                            <option value="" disabled selected>-- Seleziona Operatore --</option>
+                            <option>Del Tevere Giuseppe</option>
+                            <option>Furnari Alfredo</option>
+                            <option>Gamiddo Marialorenza</option>
+                            <option>Giuffrida Giusi</option>
+                            <option>Giuffrida Martina</option>
+                            <option>Leocata Rita</option>
+                            <option>Lo Cicero Laura</option>
+                            <option>Mangani Federica</option>
+                            <option>Mazzaglia Cinzia</option>
+                            <option>Paparo Tiziana</option>
+                            <option>Perri Marilisa</option>
+                            <option>Romano Roberta</option>
+                            <option>Venuto Mariannunziata</option>
+                       </select>
+                    </div>
+                    <div> <label for="modal-prima-pausa"><i class="fas fa-mug-saucer"></i> Prima Pausa (15 min):</label> <input type="time" id="modal-prima-pausa" name="prima_pausa"> </div>
+                    <div> <label for="modal-seconda-pausa"><i class="fas fa-mug-hot"></i> Seconda Pausa (15 min):</label> <input type="time" id="modal-seconda-pausa" name="seconda_pausa"> </div>
+                    <div> <label for="modal-pausa-pranzo"><i class="fas fa-utensils"></i> Pausa Pranzo (1h):</label> <input type="time" id="modal-pausa-pranzo" name="pausa_pranzo"> </div>
+                    <div> <label for="modal-terza-pausa"><i class="fas fa-hourglass-start"></i> Terza Pausa (15 min - 8h):</label> <input type="time" id="modal-terza-pausa" name="terza_pausa"> </div>
+                    <div class="modal-actions"> <button type="button" id="cancel-modal-btn" class="action-btn cancel-btn">Annulla</button> <button type="submit" class="action-btn save-btn"><i class="fas fa-save"></i> Salva</button> </div>
+               </form>
+            </div>
+       </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- START GIST CONFIGURATION (Static part) ---
+        const GIST_FILENAME = "rlGreenPauseData.json";
+        const GIST_DESCRIPTION = "RL Green Team Pause Schedule Data";
+        // --- END GIST CONFIGURATION ---
+
+        // --- User Provided Credentials (will be populated from auth modal) ---
+        let GITHUB_TOKEN_FROM_USER = null;
+        let GIST_ID_FROM_USER = null;
+
+        // Main application UI elements
+        const addPauseBtn = document.getElementById('add-pause-btn');
+        const modal = document.getElementById('add-pause-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const cancelModalBtn = document.getElementById('cancel-modal-btn');
+        const addPauseForm = document.getElementById('add-pause-form');
+        const tableBody = document.getElementById('pause-table-body');
+        const filterSelect = document.getElementById('filter-select');
+        const clockElement = document.getElementById('current-datetime');
+        const banner = document.getElementById('in-pause-banner');
+        const initialBannerPlaceholder = banner.querySelector('.banner-placeholder').cloneNode(true);
+        
+        // Authentication Modal Elements
+        const authModal = document.getElementById('auth-modal');
+        const authForm = document.getElementById('auth-form');
+        const authTokenInput = document.getElementById('auth-token-input');
+        const authGistIdInput = document.getElementById('auth-gist-id-input');
+        const mainAppContainer = document.getElementById('main-app-container');
+
+        let pauseData = [];
+        let bannerIntervalId;
+        let serverSyncIntervalId;
+
+        const PAUSE_DURATIONS = { prima_pausa: 15, seconda_pausa: 15, pausa_pranzo: 60, terza_pausa: 15 };
+        const OPERATOR_ICONS = { "Del Tevere Giuseppe": "fas fa-coffee", "Furnari Alfredo": "fas fa-laptop-code", "Gamiddo Marialorenza": "fas fa-apple-whole", "Giuffrida Giusi": "fas fa-pencil-alt", "Giuffrida Martina": "fas fa-star", "Leocata Rita": "fas fa-heart", "Lo Cicero Laura": "fas fa-leaf", "Mangani Federica": "fas fa-sun", "Mazzaglia Cinzia": "fas fa-moon", "Paparo Tiziana": "fas fa-headphones", "Perri Marilisa": "fas fa-gamepad", "Romano Roberta": "fas fa-book-open", "Venuto Mariannunziata": "fas fa-paper-plane", "default": "fas fa-user-clock" };
+
+        // --- Gist Data Functions ---
+        async function loadDataFromGist() {
+            if (!GITHUB_TOKEN_FROM_USER || !GIST_ID_FROM_USER) {
+                console.error("Token GitHub o ID Gist non forniti.");
+                alert("ERRORE: Token GitHub o ID Gist non forniti. Impossibile caricare i dati.");
+                return false; // Indicate critical failure
+            }
+            console.log(`Tentativo di caricare i dati dal Gist ID: ${GIST_ID_FROM_USER}, Filename: ${GIST_FILENAME}`);
+            try {
+                const response = await fetch(`https://api.github.com/gists/${GIST_ID_FROM_USER}`, {
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN_FROM_USER}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'If-None-Match': '' 
+                    }
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                     alert(`Autenticazione fallita (Status: ${response.status}). Controlla il tuo GitHub Token.`);
+                     sessionStorage.removeItem('github_token'); // Clear bad token
+                     return false; 
+                }
+                if (response.status === 404) {
+                    alert(`Gist con ID '${GIST_ID_FROM_USER}' non trovato. Verifica l'ID del Gist.`);
+                    sessionStorage.removeItem('gist_id'); // Clear bad Gist ID
+                    return false; 
+                }
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Errore nel caricare il Gist: ${response.status} ${response.statusText}. Dettagli: ${errorText}`);
+                }
+
+                const gist = await response.json();
+                if (gist.files && gist.files[GIST_FILENAME] && gist.files[GIST_FILENAME].content) {
+                    const content = gist.files[GIST_FILENAME].content;
+                    if (content.trim() === "") {
+                        console.log(`File ${GIST_FILENAME} nel Gist è vuoto. Inizializzazione con dati vuoti.`);
+                        pauseData = [];
+                    } else {
+                        pauseData = JSON.parse(content);
+                        if (!Array.isArray(pauseData)) {
+                            console.warn("Formato dati non valido nel Gist, reinizializzazione.");
+                            pauseData = [];
+                        } else {
+                            console.log("Dati caricati con successo dal Gist.");
+                        }
+                    }
+                } else {
+                    console.log(`File ${GIST_FILENAME} non trovato nel Gist o vuoto. Inizializzazione con dati vuoti. Verrà creato al primo salvataggio.`);
+                    pauseData = []; // Initialize as empty, will be created on first save
+                }
+                return true; // Indicate success
+            } catch (error) {
+                console.error("Errore durante il caricamento dei dati dal Gist:", error);
+                alert(`ERRORE CRITICO durante il caricamento dei dati dal Gist:\n\n${error.message}\n\nL'applicazione potrebbe non funzionare correttamente.`);
+                return false; 
+            }
+        }
+
+        async function saveDataToGist() {
+            if (!GITHUB_TOKEN_FROM_USER || !GIST_ID_FROM_USER) {
+                console.error("Token GitHub o ID Gist non forniti. Impossibile salvare.");
+                alert("ERRORE: Token GitHub o ID Gist non forniti. Impossibile salvare i dati.");
+                return;
+            }
+            console.log(`Tentativo di salvare i dati sul Gist ID: ${GIST_ID_FROM_USER}, Filename: ${GIST_FILENAME}`);
+            try {
+                const contentToSave = JSON.stringify(pauseData, null, 2); 
+                const payload = {
+                    description: GIST_DESCRIPTION,
+                    files: {
+                        [GIST_FILENAME]: {
+                            content: contentToSave
+                        }
+                    }
+                };
+                const response = await fetch(`https://api.github.com/gists/${GIST_ID_FROM_USER}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN_FROM_USER}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: "Errore sconosciuto durante il parsing della risposta di errore." }));
+                    throw new Error(`Errore nel salvare i dati sul Gist (Status: ${response.status} ${response.statusText}): ${errorData.message}`);
+                }
+                console.log("Dati salvati con successo sul Gist.");
+            } catch (error) {
+                console.error("Errore durante il salvataggio dei dati sul Gist:", error);
+                alert(`ERRORE durante il salvataggio dei dati sul Gist:\n\n${error.message}\n\nLe modifiche potrebbero non essere state salvate.`);
+            }
+        }
+        
+        // --- Time Sync Section (Identical to previous version) ---
+        let serverTimeAtLastSync = null;
+        let localTimeAtLastSync = null;
+        let isSyncing = false;
+        let initialSyncAttempted = false;
+        let syncFailedPermanentlyForSession = false;
+        const TIMEZONEDB_API_KEY = "1N7Z5FAI71AV";
+        const SERVER_SYNC_POLL_INTERVAL = 5 * 60 * 1000;
+        const FETCH_TIMEOUT_MS = 60000;
+
+        const formatDateTime=(d, showSyncStatus = false)=>{if(!(d instanceof Date)||isNaN(d))return'--/--/----,--:--:--';const dy=String(d.getDate()).padStart(2,'0');const mo=String(d.getMonth()+1).padStart(2,'0');const y=d.getFullYear();const h=String(d.getHours()).padStart(2,'0');const m=String(d.getMinutes()).padStart(2,'0');const s=String(d.getSeconds()).padStart(2,'0');let statusText = "";if (showSyncStatus) {if (isSyncing && !serverTimeAtLastSync && !syncFailedPermanentlyForSession) {statusText = " (Sincronizzazione...)";} else if (syncFailedPermanentlyForSession || (!serverTimeAtLastSync && initialSyncAttempted)) {statusText = " (Locale - Sync Fallita)";} else if (!serverTimeAtLastSync && !initialSyncAttempted) {}}return`${dy}/${mo}/${y}, ${h}:${m}:${s}${statusText}`;};
+        const updateClock = () => {let currentTime;let showStatus = true;if (serverTimeAtLastSync && localTimeAtLastSync) {const elapsedSinceLastSync = new Date().getTime() - localTimeAtLastSync.getTime();currentTime = new Date(serverTimeAtLastSync.getTime() + elapsedSinceLastSync);showStatus = false;} else {currentTime = new Date();}clockElement.textContent = formatDateTime(currentTime, showStatus);};
+        async function fetchTimeFromServer(isInitialAttempt = false) {if (isSyncing && !isInitialAttempt) return;isSyncing = true;if (!initialSyncAttempted) initialSyncAttempted = true;if (!TIMEZONEDB_API_KEY) {console.error("Errore: API Key di TimeZoneDB non presente.");if (isInitialAttempt) syncFailedPermanentlyForSession = true;isSyncing = false;return;}const timeApiUrl = `https://api.timezonedb.com/v2.1/get-time-zone?key=${TIMEZONEDB_API_KEY}&format=json&by=zone&zone=Europe/Rome`;const controller = new AbortController();const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);try {const response = await fetch(timeApiUrl, { signal: controller.signal });clearTimeout(timeoutId);if (!response.ok) {throw new Error(`Errore API TimeZoneDB: ${response.status} ${response.statusText}`);}const data = await response.json();if (data && data.status === "OK" && data.formatted) {const parsedDate = new Date(data.formatted);if (isNaN(parsedDate.getTime())) {throw new Error(`Formato data.formatted non parsabile: ${data.formatted}`);}serverTimeAtLastSync = parsedDate;localTimeAtLastSync = new Date();syncFailedPermanentlyForSession = false;console.log('Ora sincronizzata (formatted):', serverTimeAtLastSync);} else if (data && data.status === "OK" && data.timestamp) {console.warn("Campo 'formatted' non trovato, usando timestamp + gmtOffset.");if (typeof data.gmtOffset !== 'number') {throw new Error("gmtOffset non trovato.");}serverTimeAtLastSync = new Date((data.timestamp + data.gmtOffset) * 1000);localTimeAtLastSync = new Date();syncFailedPermanentlyForSession = false;console.log('Ora sincronizzata (timestamp):', serverTimeAtLastSync);}else {throw new Error(`Risposta API TimeZoneDB non valida: ${data.message || 'Formato sconosciuto'}`);}} catch (error) {clearTimeout(timeoutId);console.error("Errore recupero ora TimeZoneDB:", error.name === 'AbortError' ? 'Timeout' : error);if (isInitialAttempt && error.name === 'AbortError') {syncFailedPermanentlyForSession = true;}} finally {isSyncing = false;}}
+        async function initializeServerTimeSync() {if (window.clockIntervalId) clearInterval(window.clockIntervalId);window.clockIntervalId = setInterval(updateClock, 1000);updateClock();await fetchTimeFromServer(true);if (serverSyncIntervalId) clearInterval(serverSyncIntervalId);serverSyncIntervalId = setInterval(() => fetchTimeFromServer(false), SERVER_SYNC_POLL_INTERVAL);}
+
+        // --- Core Application Logic (render, event handlers, etc.) ---
+        const formatTime=(d)=>{if(!(d instanceof Date)||isNaN(d))return'--:--';const h=String(d.getHours()).padStart(2,'0');const m=String(d.getMinutes()).padStart(2,'0');return`${h}:${m}`;};
+        const showModal=()=>{modal.style.display='block';document.getElementById('modal-operatore').focus();};
+        const hideModal=()=>{modal.style.display='none';addPauseForm.reset();document.getElementById('modal-operatore').value="";};
+        const calculateEndTime=(st,dur)=>{if(!st||!/^\d{2}:\d{2}$/.test(st)||typeof dur!=='number')return null;const[h,m]=st.split(':').map(Number);const sd=new Date();sd.setHours(h,m,0,0);return new Date(sd.getTime()+dur*60000);};
+        const renderTable=()=>{tableBody.innerHTML='';const filteredData=getFilteredData();if(filteredData.length===0){showEmptyRowPlaceholder(filterSelect.value==='tutti'?"Nessuna pausa...":'Nessuna pausa trovata.');return;}filteredData.forEach(data=>{const idx=pauseData.findIndex(item=>item.id===data.id);if(idx===-1)return;const r=tableBody.insertRow();r.dataset.id=data.id;const lbls={operatore:"Operatore",prima_pausa:"Prima Pausa",seconda_pausa:"Seconda Pausa",pausa_pranzo:"Pausa Pranzo",terza_pausa:"Terza Pausa (8h)",azioni:"Azioni"};const co=r.insertCell();co.textContent=data.operatore;co.dataset.label=lbls.operatore;const pts=['prima_pausa','seconda_pausa','pausa_pranzo','terza_pausa'];pts.forEach(t=>{const c=r.insertCell();const v=data[t];c.dataset.pausetype=t;c.dataset.label=lbls[t];c.dataset.index=idx;const cnt=document.createElement('div');cnt.classList.add('cell-content');if(v){const cb=document.createElement('input');cb.type='checkbox';cb.title='Fatto';cb.checked=data.completed&&data.completed[t];cb.dataset.type=t;cb.dataset.index=idx;cnt.appendChild(cb);const ts=document.createElement('span');ts.classList.add('time-value');ts.textContent=v;cnt.appendChild(ts);c.dataset.scheduledTime=v;if(cb.checked)c.classList.add('completed');}else{const pd=document.createElement('span');pd.classList.add('placeholder-dash');pd.innerHTML='–';cnt.appendChild(pd);}c.appendChild(cnt);});const ca=r.insertCell();const bd=document.createElement('button');bd.classList.add('action-btn','delete-btn');bd.title='Elimina';bd.innerHTML='<i class="fas fa-trash-alt"></i> Elimina';bd.dataset.index=idx;ca.appendChild(bd);});};
+        const showEmptyRowPlaceholder=(msg)=>{tableBody.innerHTML=`<tr class="empty-row-placeholder"><td colspan="6">${msg}</td></tr>`;};
+        const getCurrentTime = () => {if (serverTimeAtLastSync && localTimeAtLastSync) {const elapsedSinceLastSync = new Date().getTime() - localTimeAtLastSync.getTime();return new Date(serverTimeAtLastSync.getTime() + elapsedSinceLastSync);}return new Date();};
+        const updateBanner=()=>{banner.innerHTML='';let uIPB=0;const now = getCurrentTime();banner.classList.remove('has-users');const oOBM={};pauseData.forEach(data=>{const opN=data.operatore;let aPT=null;let aPET=null;const pTs=['prima_pausa','seconda_pausa','pausa_pranzo','terza_pausa'];pTs.forEach(type=>{const sT=data[type];const iC=data.completed&&data.completed[type];const d=PAUSE_DURATIONS[type];if(sT&&!iC&&d){const stT=calculateEndTime(sT,0);const etT=calculateEndTime(sT,d);if(stT&&etT&&now>=stT&&now<etT){aPT=type;aPET=etT;if(!oOBM[opN])oOBM[opN]={icon:OPERATOR_ICONS[opN]||OPERATOR_ICONS["default"],endTime:aPET};}}});});Object.keys(oOBM).forEach(opN=>{uIPB++;const bI=oOBM[opN];const pDiv=document.createElement('div');pDiv.classList.add('paused-user');pDiv.dataset.operator=opN;const iC=document.createElement('div');iC.classList.add('icon-circle');const i=document.createElement('i');i.className=bI.icon;iC.appendChild(i);const nS=document.createElement('span');nS.classList.add('user-name');nS.textContent=opN;nS.title=opN;const etS=document.createElement('span');etS.classList.add('pause-end-time');etS.textContent=`Fine: ${formatTime(bI.endTime)}`;pDiv.appendChild(iC);pDiv.appendChild(nS);pDiv.appendChild(etS);banner.appendChild(pDiv);});if(uIPB===0){banner.appendChild(initialBannerPlaceholder.cloneNode(true));banner.style.minHeight='85px';}else{banner.classList.add('has-users');banner.style.minHeight='';const cP=banner.querySelector('.banner-placeholder');if(cP)cP.remove();}};
+        const getFilteredData=(data=pauseData)=>{const fV=filterSelect.value;const now = getCurrentTime();return data.filter(item=>{if(fV==='tutti')return true;const pTs=['prima_pausa','seconda_pausa','pausa_pranzo','terza_pausa'];const hSP=pTs.some(t=>!!item[t]);const sPTs=pTs.filter(t=>!!item[t]);const cPTs=sPTs.filter(t=>item.completed&&item.completed[t]);if(fV==='conclusa'){return hSP&&sPTs.length===cPTs.length;}if(fV==='in_corso'){return sPTs.some(t=>{const sT=item[t];const iC=item.completed&&item.completed[t];const d=PAUSE_DURATIONS[t];if(!sT||iC||!d)return false;const stT=calculateEndTime(sT,0);const etT=calculateEndTime(sT,d);return stT&&etT&&now>=stT&&now<etT;});}return false;});};
+        const handleCheckboxChange= async (e)=>{const c=e.target;const i=parseInt(c.dataset.index,10);const t=c.dataset.type;if(isNaN(i)||i<0||i>=pauseData.length||!t)return;if(!pauseData[i].completed)pauseData[i].completed={};pauseData[i].completed[t]=c.checked;renderTable();updateBanner();await saveDataToGist();};
+        const handleDeleteRow= async (e)=>{const b=e.target.closest('.delete-btn');if(!b)return;const i=parseInt(b.dataset.index,10);if(isNaN(i)||i<0||i>=pauseData.length)return;const o=pauseData[i].operatore;if(confirm(`Eliminare ${o}?`)){pauseData.splice(i,1);renderTable();updateBanner();await saveDataToGist();}};
+        const handleDoubleClickEdit=(e)=>{const s=e.target.closest('span.time-value');const p=e.target.closest('td[data-pausetype]');if(!p||p.classList.contains('editing')||!s)return;const i=parseInt(p.dataset.index,10);const t=p.dataset.pausetype;if(isNaN(i)||!t||!pauseData[i]||!pauseData[i][t])return;const cur=pauseData[i][t];p.classList.add('editing');const inp=document.createElement('input');inp.type='time';inp.classList.add('edit-time-input');inp.value=cur;inp.dataset.originalValue=cur;const fin= async (save)=>{if(inp.parentNode===p)p.removeChild(inp);p.classList.remove('editing');let chg=false;if(save){const n=inp.value.trim();if(n!==cur&&n){pauseData[i][t]=n;chg=true;}else if(!n&&cur){pauseData[i][t]=null;if(pauseData[i].completed&&pauseData[i].completed[t]){delete pauseData[i].completed[t];}chg=true;}}if(chg){renderTable();updateBanner();await saveDataToGist();}};inp.addEventListener('blur',()=>setTimeout(async () => await fin(true),100));inp.addEventListener('keydown', async (ev)=>{if(ev.key==='Enter'){ev.preventDefault(); await fin(true);}else if(ev.key==='Escape'){fin(false);}});p.appendChild(inp);inp.focus();inp.select();};
+        
+        // --- Application Initialization and Event Listeners Setup ---
+        async function initializeApp() {
+            const loadSuccess = await loadDataFromGist();
+
+            if (!loadSuccess) {
+                // loadDataFromGist would have shown an alert and cleared sessionStorage for the failed item
+                authModal.style.display = 'flex'; // Ensure auth modal is visible
+                mainAppContainer.style.display = 'none'; // Ensure main app is hidden
+                return; // Stop further initialization
+            }
+
+            // If load was successful, hide auth modal and show main app
+            authModal.style.display = 'none';
+            mainAppContainer.style.display = 'block';
+
+            // Clear any previous intervals if re-initializing
+            if(window.clockIntervalId) clearInterval(window.clockIntervalId);
+            if(window.bannerIntervalId) clearInterval(window.bannerIntervalId);
+            if(window.serverSyncIntervalId) clearInterval(window.serverSyncIntervalId);
+            
+            await initializeServerTimeSync();
+            updateBanner();
+            renderTable();
+
+            // Setup main app event listeners
+            addPauseBtn.addEventListener('click',showModal);
+            closeModalBtn.addEventListener('click',hideModal);
+            cancelModalBtn.addEventListener('click',hideModal);
+            modal.addEventListener('click',(e)=>{if(e.target===modal)hideModal();});
+            tableBody.addEventListener('click',(e)=>{if(e.target.closest('.delete-btn'))handleDeleteRow(e);});
+            tableBody.addEventListener('change',(e)=>{if(e.target.type==='checkbox')handleCheckboxChange(e);});
+            tableBody.addEventListener('dblclick',(e)=>{handleDoubleClickEdit(e);});
+            filterSelect.addEventListener('change',renderTable);
+            
+            addPauseForm.addEventListener('submit', async (e)=>{ 
+                e.preventDefault();const fD=new FormData(addPauseForm);const nD=Object.fromEntries(fD.entries());
+                if(!nD.operatore){alert('Selez. operatore.');return;}
+                const oE=pauseData.some(p=>p.operatore===nD.operatore);
+                if(oE){alert(`Operatore ${nD.operatore} già presente.`);return;}
+                const hP=['prima_pausa','seconda_pausa','pausa_pranzo','terza_pausa'].some(t=>nD[t]);
+                if(!hP){alert('Inserire orario.');return;}
+                nD.id=Date.now().toString();nD.completed={};
+                Object.keys(nD).forEach(k=>{if(k.includes('_pausa')&&!nD[k])nD[k]=null;});
+                pauseData.push(nD);hideModal();renderTable();updateBanner();
+                await saveDataToGist(); 
+            });
+
+            window.bannerIntervalId = setInterval(()=>{
+                updateBanner();
+                if(filterSelect.value === 'in_corso' || filterSelect.value === 'conclusa'){
+                    renderTable();
+                }
+            }, 15 * 1000);
+
+            const AUTO_REFRESH_INTERVAL_MS = 10 * 60 * 1000; 
+            const autoRefreshPage = () => {
+                console.log(`Refreshing page automatically at ${new Date().toLocaleTimeString()}`);
+                location.reload();
+            };
+            setInterval(autoRefreshPage, AUTO_REFRESH_INTERVAL_MS);
+            console.log(`Page auto-refresh scheduled every ${AUTO_REFRESH_INTERVAL_MS / 60000} minutes.`);
+        }
+
+        // --- Authentication Modal Logic ---
+        const storedToken = sessionStorage.getItem('github_token');
+        const storedGistId = sessionStorage.getItem('gist_id');
+
+        if (storedToken) authTokenInput.value = storedToken;
+        if (storedGistId) authGistIdInput.value = storedGistId;
+
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = authTokenInput.value.trim();
+            const gistId = authGistIdInput.value.trim();
+
+            if (!token || !gistId) {
+                alert("Per favore, inserisci sia il Token GitHub che l'ID del Gist.");
+                return;
+            }
+
+            GITHUB_TOKEN_FROM_USER = token;
+            GIST_ID_FROM_USER = gistId;
+
+            sessionStorage.setItem('github_token', token);
+            sessionStorage.setItem('gist_id', gistId);
+
+            await initializeApp(); 
+        });
+        
+        // Show auth modal initially
+        authModal.style.display = 'flex';
+        mainAppContainer.style.display = 'none';
+
+        // If credentials are pre-filled and user wants to proceed quickly,
+        // they still need to click the button. Or, uncomment to auto-submit if both are present.
+        // if (storedToken && storedGistId) {
+        //     GITHUB_TOKEN_FROM_USER = storedToken;
+        //     GIST_ID_FROM_USER = storedGistId;
+        //     initializeApp(); // Try to initialize directly
+        // }
+
+    });
+</script>
+
+</body>
+</html>
